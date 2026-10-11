@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CitiBike Profiler - Phân Nhóm Cụm Trạm Xe Đạp NYC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="logo-icon">🚲</div>
+        <div>
+          <h1>CitiBike Profiler</h1>
+          <p class="subtitle">Project 23 • Phân Nhóm Cụm Trạm Theo Hồ Sơ Sử Dụng</p>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="tab-intro" id="btn-tab-intro">
+          <span>📖</span> Giới Thiệu & Phạm Vi
+        </button>
+        <button class="tab-btn" data-tab="tab-map" id="btn-tab-map">
+          <span>🗺️</span> Thao Tác & Bản Đồ Trạm
+        </button>
+        <button class="tab-btn" data-tab="tab-dashboard" id="btn-tab-dashboard">
+          <span>📊</span> Dashboard & Model Card
+        </button>
+      </nav>
+      <div class="system-status">
+        <span class="status-dot online"></span>
+        <span class="status-text">K-Means Serving v1.0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main">
+    
+    <!-- ================= MÀN HÌNH 1: GIỚI THIỆU & PHẠM VI ================= -->
+    <section id="tab-intro" class="tab-content active">
+      <div class="intro-hero">
+        <div class="hero-badge">HỌC MÁY CƠ BẢN • HỌC PHẦN PROJECT KẾT THÚC</div>
+        <h2>Nhận Biết Trạm Đi Làm, Du Lịch & Hỗn Hợp Từ Mẫu Sử Dụng Thực Tế</h2>
+        <p class="hero-lead">
+          Ứng dụng phân nhóm các trạm xe đạp chia sẻ Citi Bike tại Thành phố New York dựa trên hồ sơ hành vi người dùng (tỷ lệ 4 khung giờ, cuối tuần, hội viên, thời lượng chuyến), loại bỏ sự sai lệch từ quy mô trạm.
+        </p>
+      </div>
+
+      <div class="grid-cards">
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h3>Bài Toán & Câu Hỏi Nghiên Cứu</h3>
+          <p><strong>Bối cảnh:</strong> Nhà vận hành xe đạp chia sẻ cần tối ưu hóa phân bổ xe và điều tiết trạm.</p>
+          <p><strong>Câu hỏi nghiên cứu:</strong> <em>"Các đặc trưng tổng hợp theo khung giờ/ngày tạo ra những cụm trạm ổn định nào?"</em></p>
+          <ul class="clean-list">
+            <li><strong>Đơn vị quan sát:</strong> Một trạm trong một tháng (~2.200 trạm).</li>
+            <li><strong>Mô hình:</strong> K-Means Clustering (K=3) với StandardScaler.</li>
+            <li><strong>Quy tắc địa lý:</strong> Tọa độ trạm (lat/lng) <strong>chỉ dùng vẽ bản đồ</strong>, không đưa vào vector K-Means nhằm tránh gom cụm theo khoảng cách vật lý thay vì hành vi.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">📦</div>
+          <h3>Phạm Vi Dữ Liệu Thực Tế</h3>
+          <p>Sử dụng <strong>2 tháng hoàn chỉnh đối chứng mùa</strong> từ Citi Bike System Data:</p>
+          <div class="data-compare-mini">
+            <div class="mini-box">
+              <span class="month-title">Tháng 04/2026 (Mùa Xuân)</span>
+              <span class="month-stat">3.860.371 chuyến • 2.229 trạm</span>
+              <span class="month-desc">Dữ liệu huấn luyện & kiểm thử chính</span>
+            </div>
+            <div class="mini-box">
+              <span class="month-title">Tháng 01/2026 (Mùa Đông)</span>
+              <span class="month-stat">1.816.391 chuyến • 2.143 trạm</span>
+              <span class="month-desc">Dữ liệu kiểm tra độ ổn định theo mùa</span>
+            </div>
+          </div>
+          <p class="mt-2 text-muted">Lọc bỏ chuyến &lt; 60 giây, &gt; 24 giờ và các trạm &lt; 30 chuyến/tháng theo quy tắc minh bạch.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h3>Quy Tắc Chống Rò Rỉ Dữ Liệu</h3>
+          <ul class="clean-list">
+            <li><strong>Phân chia tập độc lập:</strong> Tách Train (70%), Validation (15%), Test (15%) ở cấp độ trạm trước khi chuẩn hóa.</li>
+            <li><strong>Không Data Leakage:</strong> <code>StandardScaler</code> chỉ được fit trên tập Train, sau đó transform cho Validation và Test.</li>
+            <li><strong>Đóng băng Seed:</strong> Cố định <code>random_state = 42</code> đảm bảo 100% tái lập.</li>
+            <li><strong>Đạo đức & Quyền riêng tư:</strong> Không lưu trữ, xử lý hay hiển thị <code>ride_id</code>, không định danh lộ trình cá nhân.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Giải thích 3 Cụm Nghiệp Vụ -->
+      <div class="clusters-overview-section">
+        <h3>3 Nhóm Trạm Được Định Danh Tự Động (K=3)</h3>
+        <div class="cluster-cards-grid">
+          <div class="cluster-overview-card cluster-0">
+            <div class="cluster-badge badge-0">Cụm 0</div>
+            <h4>Điểm Đến Đi Làm / Thương Mại</h4>
+            <div class="cluster-pill">Commercial Destination</div>
+            <p>Trạm tập trung ở các khu văn phòng, trung tâm tài chính Midtown & Downtown Manhattan.</p>
+            <div class="key-traits">
+              <span><strong>Net Flow Sáng:</strong> +31.87% (Chuyến đến áp đảo)</span>
+              <span><strong>Tan sở Chiều:</strong> 38.42% chuyến xuất phát</span>
+              <span><strong>Cuối tuần:</strong> Chỉ 17.43% (Thấp nhất)</span>
+            </div>
+          </div>
+
+          <div class="cluster-overview-card cluster-1">
+            <div class="cluster-badge badge-1">Cụm 1</div>
+            <h4>Khu Dân Cư Đi Làm</h4>
+            <div class="cluster-pill">Residential Commuter Origin</div>
+            <p>Trạm tại các khu đô thị dân cư, chung cư ngoại vi Manhattan, Brooklyn, Queens.</p>
+            <div class="key-traits">
+              <span><strong>Xuất phát Sáng:</strong> 23.33% (Cao nhất)</span>
+              <span><strong>Net Flow Sáng:</strong> -36.84% (Xe rời đi làm)</span>
+              <span><strong>Tỷ lệ Hội viên:</strong> 84.87% (Rất cao)</span>
+            </div>
+          </div>
+
+          <div class="cluster-overview-card cluster-2">
+            <div class="cluster-badge badge-2">Cụm 2</div>
+            <h4>Hỗn Hợp & Vui Chơi / Đêm</h4>
+            <div class="cluster-pill">Mixed & Leisure / Nightlife</div>
+            <p>Trạm gần công viên, khu ăn uống giải trí, ven sông Hudson và trung tâm nghệ thuật.</p>
+            <div class="key-traits">
+              <span><strong>Ban đêm:</strong> 21.88% (Cao nhất)</span>
+              <span><strong>Cuối tuần:</strong> 23.46% (Sử dụng giải trí)</span>
+              <span><strong>Khách vãng lai:</strong> Chiếm tỷ trọng cao nhất</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MÀN HÌNH 2: THAO TÁC CHÍNH & BẢN ĐỒ TRẠM ================= -->
+    <section id="tab-map" class="tab-content">
+      <div class="map-layout">
+        
+        <!-- Sidebar Controls & Station Detail -->
+        <aside class="map-sidebar">
+          
+          <!-- Bộ điều khiển -->
+          <div class="sidebar-box filter-box">
+            <h3>Bộ Lọc & Tìm Kiếm</h3>
+            
+            <div class="form-group">
+              <label for="month-select">📅 Chọn Tháng Quan Sát:</label>
+              <select id="month-select" class="form-select">
+                <option value="2026-04" selected>Tháng 04/2026 (Mùa Xuân - 2.229 trạm)</option>
+                <option value="2026-01">Tháng 01/2026 (Mùa Đông - 2.143 trạm)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="cluster-select">🎯 Lọc Theo Cụm Trạm:</label>
+              <select id="cluster-select" class="form-select">
+                <option value="all" selected>Tất cả các cụm (All Clusters)</option>
+                <option value="0">Cụm 0: Điểm đến Đi làm / Thương mại</option>
+                <option value="1">Cụm 1: Khu Dân cư Đi làm</option>
+                <option value="2">Cụm 2: Hỗn hợp & Vui chơi Đêm</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="search-input">🔍 Tìm Trạm (Tên hoặc ID):</label>
+              <input type="text" id="search-input" class="form-input" placeholder="Ví dụ: Broadway, 7293.10...">
+            </div>
+
+            <div class="stations-counter">
+              Đang hiển thị: <span id="visible-station-count">0</span> trạm
+            </div>
+          </div>
+
+          <!-- Chú giải màu sắc cụm -->
+          <div class="sidebar-box legend-box">
+            <h4>Chú Giải Màu Sắc Cụm</h4>
+            <div class="legend-item">
+              <span class="legend-color color-0"></span>
+              <div class="legend-info">
+                <strong>Cụm 0:</strong> Điểm đến Thương mại / Văn phòng
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color color-1"></span>
+              <div class="legend-info">
+                <strong>Cụm 1:</strong> Dân cư Đi làm (Xuất phát sáng)
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color color-2"></span>
+              <div class="legend-info">
+                <strong>Cụm 2:</strong> Hỗn hợp & Giải trí / Đêm
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Chi Tiết Của Trạm Được Chọn -->
+          <div class="sidebar-box station-profile-card" id="station-profile-card">
+            <div class="profile-placeholder" id="profile-placeholder">
+              <span>📍</span>
+              <p>Hãy nhấp vào một điểm trạm trên bản đồ để xem hồ sơ đặc trưng chi tiết.</p>
+            </div>
+
+            <div class="profile-details hidden" id="profile-details">
+              <div class="profile-header">
+                <span class="station-cluster-tag" id="detail-cluster-tag">Cụm 1</span>
+                <h4 id="detail-station-name">E 88 St & Park Ave</h4>
+                <div class="station-meta">
+                  <span>ID: <code id="detail-station-id">7293.10</code></span> •
+                  <span id="detail-total-trips">6,021 chuyến</span>
+                </div>
+              </div>
+
+              <div class="metrics-bars">
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>Sáng (06-10h):</span>
+                    <strong id="bar-val-morning">23.3%</strong>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill" id="bar-morning" style="width: 23%;"></div></div>
+                </div>
+
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>Chiều (16-20h):</span>
+                    <strong id="bar-val-evening">28.5%</strong>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill" id="bar-evening" style="width: 28%;"></div></div>
+                </div>
+
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>Cuối tuần:</span>
+                    <strong id="bar-val-weekend">22.0%</strong>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill" id="bar-weekend" style="width: 22%;"></div></div>
+                </div>
+
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>Hội viên (Member):</span>
+                    <strong id="bar-val-member">84.8%</strong>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill highlight" id="bar-member" style="width: 84%;"></div></div>
+                </div>
+
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>Net Sáng (Vào - Ra):</span>
+                    <strong id="bar-val-flow">-36.8%</strong>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill flow" id="bar-flow" style="width: 50%;"></div></div>
+                </div>
+              </div>
+
+              <div class="profile-footer-stats">
+                <div>
+                  <span class="foot-title">Thời lượng trung vị:</span>
+                  <span class="foot-val" id="detail-duration">8.6 phút</span>
+                </div>
+                <div>
+                  <span class="foot-title">Tọa độ:</span>
+                  <span class="foot-val" id="detail-coords">40.781, -73.956</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- Map Container -->
+        <div class="map-wrapper">
+          <div id="leaflet-map"></div>
+          <div class="map-overlay-info">
+            <span>💡 <strong>Mẹo:</strong> Thu phóng và nhấp vào từng chấm tròn để khám phá đặc trưng trạm.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= MÀN HÌNH 3: DASHBOARD & MODEL CARD ================= -->
+    <section id="tab-dashboard" class="tab-content">
+      
+      <!-- Metric Highlights -->
+      <div class="dashboard-metrics-summary">
+        <div class="metric-card">
+          <span class="metric-title">Số Cụm Tối Ưu (K)</span>
+          <span class="metric-number">3</span>
+          <span class="metric-sub">Phù hợp 3 phân khúc thực tế</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Test Silhouette Score</span>
+          <span class="metric-number">0.1638</span>
+          <span class="metric-sub">Đánh giá 1 lần trên Test độc lập</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Độ Ổn Định Qua 5 Seeds (ARI)</span>
+          <span class="metric-number">0.9984</span>
+          <span class="metric-sub">Không bị ảnh hưởng bởi khởi tạo</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Ổn Định Qua 2 Mùa (ARI)</span>
+          <span class="metric-number">0.3873</span>
+          <span class="metric-sub">2.129 trạm chung (Xuân vs Đông)</span>
+        </div>
+      </div>
+
+      <!-- 4 Thí Nghiệm Bắt Buộc Visuals -->
+      <div class="experiments-section">
+        <h3>Kết Quả 4 Thí Nghiệm Bắt Buộc</h3>
+        
+        <div class="exp-grid">
+          
+          <!-- Thí nghiệm 1 -->
+          <div class="exp-card">
+            <div class="exp-badge">Thí Nghiệm 1</div>
+            <h4>So Sánh Volume Baseline vs Hồ Sơ Tỷ Lệ</h4>
+            <div class="fig-preview">
+              <img src="/reports/figures/fig1_baseline_vs_profile.png" alt="Biểu đồ Thí nghiệm 1: Volume vs Profile">
+            </div>
+            <div class="exp-desc">
+              <p><strong>Kết quả:</strong> ARI giữa Baseline (Volume) và Profile KMeans chỉ là <strong>0.0115</strong> (~0).</p>
+              <p><strong>Ý nghĩa:</strong> Chứng minh phân cụm theo hồ sơ tỷ lệ phản ánh đúng bản chất hành vi giờ giấc, trong khi Volume chỉ phân chia "trạm to vs trạm nhỏ".</p>
+            </div>
+          </div>
+
+          <!-- Thí nghiệm 2 -->
+          <div class="exp-card">
+            <div class="exp-badge">Thí Nghiệm 2</div>
+            <h4>Đường Cong Elbow & Silhouette (K = 2 đến 8)</h4>
+            <div class="fig-preview">
+              <img src="/reports/figures/fig2_elbow_silhouette.png" alt="Biểu đồ Thí nghiệm 2: Elbow và Silhouette">
+            </div>
+            <div class="exp-desc">
+              <p><strong>Kết quả:</strong> Inertia giảm dần và uốn cong tại K=3, K=4. Silhouette score đạt cực trị cục bộ tại K=2 (0.21) và K=4 (0.18).</p>
+              <p><strong>Lựa chọn K=3:</strong> Cân bằng hoàn hảo giữa khả năng giải thích nghiệp vụ (3 nhóm vận hành) và phân bố kích thước cụm.</p>
+            </div>
+          </div>
+
+          <!-- Thí nghiệm 3 -->
+          <div class="exp-card">
+            <div class="exp-badge">Thí Nghiệm 3</div>
+            <h4>Độ Ổn Định Qua Seed & Ma Trận Chuyển Dịch 2 Mùa</h4>
+            <div class="fig-preview">
+              <img src="/reports/figures/fig3_season_stability.png" alt="Biểu đồ Thí nghiệm 3: Độ ổn định 2 mùa">
+            </div>
+            <div class="exp-desc">
+              <p><strong>Kết quả:</strong> Ổn định qua seed gần như tuyệt đối (ARI = 0.9984). Giữa 2 mùa Xuân và Đông, ARI = 0.3873 và NMI = 0.3345.</p>
+              <p><strong>Phân tích mùa:</strong> Vào mùa đông tuyết rơi, các trạm giải trí/du lịch có xu hướng chuyển dịch mạnh thành trạm dân cư/đi làm thiết yếu.</p>
+            </div>
+          </div>
+
+          <!-- Thí nghiệm 4 -->
+          <div class="exp-card">
+            <div class="exp-badge">Thí Nghiệm 4</div>
+            <h4>Mô Tả Cụm Bằng Giá Trị Trung Vị (Median Profiles)</h4>
+            <div class="fig-preview">
+              <img src="/reports/figures/fig4_cluster_medians.png" alt="Biểu đồ Thí nghiệm 4: Median Profiles">
+            </div>
+            <div class="exp-desc">
+              <p><strong>Kết quả:</strong> Thay vì đặt tên cảm tính, các cụm được định lượng rõ ràng bằng bảng Median:</p>
+              <table class="mini-table">
+                <thead>
+                  <tr><th>Cụm</th><th>Số Trạm</th><th>Sáng (Out)</th><th>Chiều (Out)</th><th>Net Sáng</th><th>Cuối tuần</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>0</td><td>431</td><td>12.09%</td><td>38.42%</td><td>+31.87%</td><td>17.43%</td></tr>
+                  <tr><td>1</td><td>1.034</td><td>23.33%</td><td>28.56%</td><td>-36.84%</td><td>22.08%</td></tr>
+                  <tr><td>2</td><td>764</td><td>14.29%</td><td>31.59%</td><td>-4.40%</td><td>23.46%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Model Card Tiêu Chuẩn -->
+      <div class="model-card-section">
+        <div class="model-card-box">
+          <div class="model-card-header">
+            <div>
+              <h3>📋 MODEL CARD: Citi Bike Station Usage Profiler</h3>
+              <p>Tài liệu hóa mô hình học máy theo tiêu chuẩn minh bạch AI</p>
+            </div>
+            <span class="version-tag">Version 1.0.0</span>
+          </div>
+
+          <div class="model-card-grid">
+            <div class="mc-item">
+              <h5>Thuật Toán & Tiền Xử Lý</h5>
+              <p><strong>Algorithm:</strong> K-Means Clustering (scikit-learn Pipeline)</p>
+              <p><strong>Scaler:</strong> StandardScaler (chỉ fit trên tập Train)</p>
+              <p><strong>K:</strong> 3 cụm nghiệp vụ • Random State: 42</p>
+            </div>
+
+            <div class="mc-item">
+              <h5>Không Gian Đặc Trưng Đầu Vào (8 Features)</h5>
+              <p><code>morning_ratio</code>, <code>midday_ratio</code>, <code>evening_ratio</code>, <code>night_ratio</code>, <code>weekend_ratio</code>, <code>member_share</code>, <code>median_duration_min</code>, <code>morning_net_flow_ratio</code>.</p>
+              <p class="text-warning"><em>* Tọa độ kinh độ/vĩ độ chỉ dùng để trực quan bản đồ, không tham gia huấn luyện.</em></p>
+            </div>
+
+            <div class="mc-item">
+              <h5>Giới Hạn Mô Hình (Limitations)</h5>
+              <ul>
+                <li>Không áp dụng cho trạm mới mở có dưới 30 chuyến/tháng (thiếu độ tin cậy mẫu).</li>
+                <li>Không dự đoán nhu cầu tức thời thời gian thực (real-time demand prediction).</li>
+                <li>Điều kiện thời tiết bão tuyết có thể làm biến dạng mẫu sử dụng theo mùa.</li>
+              </ul>
+            </div>
+
+            <div class="mc-item">
+              <h5>Trách Nhiệm & Đạo Đức Dữ Liệu</h5>
+              <ul>
+                <li>Tuân thủ 100% <strong>NYCBS Data Use Policy</strong> của hệ thống Citi Bike NYC.</li>
+                <li>Tuyệt đối <strong>không hiển thị ride_id</strong> hoặc hành trình cá nhân trên hệ thống.</li>
+                <li>Dữ liệu được ẩn danh hóa và tổng hợp ở cấp độ trạm để bảo vệ quyền riêng tư người dùng.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>BTL Học Máy Cơ Bản • Đề tài 23: Phân nhóm trạm Citi Bike theo hồ sơ sử dụng • Giảng viên: PGS.TS. Nguyễn Văn Hậu</p>
+      <p class="text-muted">Nhóm 02 sinh viên • Dữ liệu: Citi Bike NYC (01/2026 & 04/2026)</p>
+    </div>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
