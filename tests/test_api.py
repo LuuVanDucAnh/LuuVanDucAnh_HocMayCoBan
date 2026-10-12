@@ -104,6 +104,31 @@ def test_error_handling():
     print("PASS: test_error_handling (404 and 422 handled correctly)")
 
 
+def test_predict_station():
+    """Kiểm tra endpoint POST /api/predict phân nhóm trạm mới qua K-Means pipeline."""
+    payload = {
+        "station_name": "Trạm Thử Nghiệm Hudson Yards",
+        "morning_ratio": 0.25,
+        "midday_ratio": 0.20,
+        "evening_ratio": 0.22,
+        "night_ratio": 0.10,
+        "weekend_ratio": 0.18,
+        "member_share": 0.85,
+        "median_duration_min": 10.5,
+        "morning_net_flow_ratio": -0.35,
+        "lat": 40.7538,
+        "lng": -74.0021
+    }
+    res = client.post("/api/predict", json=payload)
+    assert res.status_code == 200, f"Lỗi dự đoán: {res.text}"
+    data = res.json()
+    assert "predicted_cluster" in data
+    assert data["predicted_cluster"] in [0, 1, 2]
+    assert "distances_to_centroids" in data
+    assert "strategy_recommendation" in data
+    print(f"PASS: test_predict_station (Predicted Cluster: {data['predicted_cluster']} - {data['cluster_label']})")
+
+
 if __name__ == "__main__":
     print("\n--- BẮT ĐẦU CHẠY KIỂM THỬ TỰ ĐỘNG HỆ THỐNG ---")
     test_get_stations_april()
@@ -113,4 +138,5 @@ if __name__ == "__main__":
     test_metrics_endpoint()
     test_model_card_endpoint()
     test_error_handling()
-    print("\n=== TẤT CẢ 7 TEST CASES ĐỀU ĐẠT CHUẨN 100%! ===\n")
+    test_predict_station()
+    print("\n=== TẤT CẢ 8 TEST CASES ĐỀU ĐẠT CHUẨN 100%! ===\n")

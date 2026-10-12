@@ -14,11 +14,12 @@ Tuân thủ yêu cầu đề tài BTL:
 
 import os
 import sys
-import pandas as pd
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+
+# Đảm bảo thư mục gốc dự án luôn có trong sys.path
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 if sys.stdout.encoding != 'utf-8':
     try:
@@ -26,31 +27,28 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
+import pandas as pd
+import numpy as np
+import joblib
+from contextlib import asynccontextmanager
+from typing import List, Optional
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.schemas import (
     StationSummary,
     StationDetail,
     ClusterMedianProfile,
     MetricsResponse,
-    ModelCardResponse
-)
-
-app = FastAPI(
-    title="Citi Bike Station Clustering API",
-    description="Hệ thống phân nhóm trạm xe đạp chia sẻ Citi Bike theo hồ sơ sử dụng - Đề tài Project 23",
-    version="1.0.0"
-)
-
-# Kích hoạt CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    ModelCardResponse,
+    PredictStationRequest,
+    PredictStationResponse
 )
 
 MODEL_DIR = r"d:\BTL_CumTramCiTiBike\models"
 STATIC_DIR = r"d:\BTL_CumTramCiTiBike\app\static"
+PIPELINE_PATH = os.path.join(MODEL_DIR, "kmeans_pipeline.joblib")
 
 # Tên nhãn nghiệp vụ diễn giải theo kết quả Thí nghiệm 4
 CLUSTER_LABELS = {
@@ -67,11 +65,13 @@ CLUSTER_COLORS = {
 
 # Nạp dữ liệu offline vào bộ nhớ khi khởi động server
 DATA_STORE = {}
+MODEL_PIPELINE = None
 
 
-@app.on_event("startup")
 def load_cached_data():
-    """Nạp sẵn dữ liệu hồ sơ trạm của cả 2 tháng."""
+    """Nạp sẵn dữ liệu hồ sơ trạm của cả 2 tháng và mô hình K-Means Pipeline."""
+    global MODEL_PIPELINE
+
     file_04 = os.path.join(MODEL_DIR, "station_profiles_202604.csv")
     file_01 = os.path.join(MODEL_DIR, "station_profiles_202601.csv")
 
@@ -87,6 +87,36 @@ def load_cached_data():
         DATA_STORE["202601"] = DATA_STORE["2026-01"]
         print(f"[API] Đã nạp dữ liệu Tháng 01/2026: {len(DATA_STORE['2026-01'])} trạm.")
 
+    if os.path.exists(PIPELINE_PATH):
+        try:
+            MODEL_PIPELINE = joblib.load(PIPELINE_PATH)
+            print(f"[API] Đã nạp thành công mô hình K-Means Pipeline từ {PIPELINE_PATH}")
+        except Exception as e:
+            print(f"[LỖI] Không thể nạp mô hình: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Quản lý vòng đời khởi động và kết thúc của ứng dụng."""
+    load_cached_data()
+    yield
+
+
+app = FastAPI(
+    title="Citi Bike Station Clustering API",
+    description="Hệ thống phân nhóm trạm xe đạp chia sẻ Citi Bike theo hồ sơ sử dụng - Đề tài Project 23",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Kích hoạt CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_df_by_month(month: str) -> pd.DataFrame:
     """Chuẩn hóa và lấy DataFrame theo tháng."""
@@ -177,6 +207,73 @@ def get_station_detail(
         electric_share=float(row.get('electric_share', 0.0)),
         median_duration_min=float(row['median_duration_min']),
         morning_net_flow_ratio=float(row['morning_net_flow_ratio'])
+    )
+
+
+@app.post("/api/predict", response_model=PredictStationResponse, tags=["Prediction"])
+def predict_new_station(req: PredictStationRequest):
+    """
+    Dự đoán phân nhóm cụm (Online Inference) cho một trạm xe đạp mới hoặc mô phỏng giả định.
+    Sử dụng pipeline StandardScaler + K-Means (K=3) đã huấn luyện offline.
+    """
+    global MODEL_PIPELINE
+    if MODEL_PIPELINE is None:
+        if os.path.exists(PIPELINE_PATH):
+            MODEL_PIPELINE = joblib.load(PIPELINE_PATH)
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Mô hình K-Means pipeline chưa sẵn sàng trên máy chủ."
+            )
+
+    df_new = pd.DataFrame([{
+        'morning_ratio': req.morning_ratio,
+        'midday_ratio': req.midday_ratio,
+        'evening_ratio': req.evening_ratio,
+        'night_ratio': req.night_ratio,
+        'weekend_ratio': req.weekend_ratio,
+        'member_share': req.member_share,
+        'median_duration_min': req.median_duration_min,
+        'morning_net_flow_ratio': req.morning_net_flow_ratio
+    }])
+
+    cluster_pred = int(MODEL_PIPELINE.predict(df_new)[0])
+
+    scaler = MODEL_PIPELINE.named_steps['scaler']
+    kmeans = MODEL_PIPELINE.named_steps['kmeans']
+    X_scaled = scaler.transform(df_new)
+    centroids = kmeans.cluster_centers_
+
+    distances = {}
+    for c_idx in range(len(centroids)):
+        dist = float(np.linalg.norm(X_scaled[0] - centroids[c_idx]))
+        distances[f"Cụm {c_idx}"] = round(dist, 4)
+
+    recommendations = {
+        0: "Khu vực Thương Mại / Điểm Đến: Xe đổ về nhiều vào buổi sáng (+Net Flow), người dùng lấy xe ra về lúc chiều tan sở. Khuyến nghị điều phối: Cần điều xe tải bốc bớt xe vào buổi trưa (11:00 - 14:00) để giải tỏa bãi đỗ, đồng thời chuẩn bị xe trước 17:00.",
+        1: "Khu vực Dân Cư Đi Làm: Nhu cầu xuất phát sáng sớm rất cao (-Net Flow), tỷ lệ hội viên năm áp đảo. Khuyến nghị điều phối: Bố trí xe tải vận chuyển xe tiếp ứng vào ban đêm (sau 22:00) và sáng sớm trước 07:00 để tránh cạn kiệt xe.",
+        2: "Khu vực Hỗn Hợp & Vui Chơi / Đêm: Lưu lượng tập trung cao vào ban đêm và các ngày cuối tuần. Khuyến nghị điều phối: Tăng cường bổ sung xe vào chiều tối thứ Sáu, thứ Bảy và Chủ Nhật; duy trì mức sạc pin cao cho các dòng xe đạp điện."
+    }
+
+    return PredictStationResponse(
+        station_name=req.station_name or "Trạm mô phỏng mới",
+        predicted_cluster=cluster_pred,
+        cluster_label=CLUSTER_LABELS.get(cluster_pred, f"Cụm {cluster_pred}"),
+        cluster_color=CLUSTER_COLORS.get(cluster_pred, "#2563EB"),
+        distances_to_centroids=distances,
+        strategy_recommendation=recommendations.get(cluster_pred, "Duy trì điều phối xe theo lịch trình thông thường."),
+        input_features={
+            "morning_ratio": req.morning_ratio,
+            "midday_ratio": req.midday_ratio,
+            "evening_ratio": req.evening_ratio,
+            "night_ratio": req.night_ratio,
+            "weekend_ratio": req.weekend_ratio,
+            "member_share": req.member_share,
+            "median_duration_min": req.median_duration_min,
+            "morning_net_flow_ratio": req.morning_net_flow_ratio
+        },
+        lat=req.lat or 40.7580,
+        lng=req.lng or -73.9855
     )
 
 

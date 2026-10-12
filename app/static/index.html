@@ -147,130 +147,272 @@
         <!-- Sidebar Controls & Station Detail -->
         <aside class="map-sidebar">
           
-          <!-- Bộ điều khiển -->
-          <div class="sidebar-box filter-box">
-            <h3>Bộ Lọc & Tìm Kiếm</h3>
-            
-            <div class="form-group">
-              <label for="month-select">📅 Chọn Tháng Quan Sát:</label>
-              <select id="month-select" class="form-select">
-                <option value="2026-04" selected>Tháng 04/2026 (Mùa Xuân - 2.229 trạm)</option>
-                <option value="2026-01">Tháng 01/2026 (Mùa Đông - 2.143 trạm)</option>
-              </select>
+          <!-- Thanh Chuyển Chế Độ Sidebar: Khám Phá VS Dự Đoán -->
+          <div class="sidebar-mode-switch">
+            <button type="button" class="mode-btn active" id="btn-mode-explore">
+              <span>🗺️</span> Khám Phá Bản Đồ
+            </button>
+            <button type="button" class="mode-btn" id="btn-mode-predict">
+              <span>🧪</span> Dự Đoán Trạm Mới
+            </button>
+          </div>
+
+          <!-- PHẦN 1: BỘ LỌC & XEM CHI TIẾT TRẠM HIỆN CÓ -->
+          <div id="explore-view-container">
+            <!-- Bộ điều khiển -->
+            <div class="sidebar-box filter-box">
+              <h3>Bộ Lọc & Tìm Kiếm</h3>
+              
+              <div class="form-group">
+                <label for="month-select">📅 Chọn Tháng Quan Sát:</label>
+                <select id="month-select" class="form-select">
+                  <option value="2026-04" selected>Tháng 04/2026 (Mùa Xuân - 2.229 trạm)</option>
+                  <option value="2026-01">Tháng 01/2026 (Mùa Đông - 2.143 trạm)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="cluster-select">🎯 Lọc Theo Cụm Trạm:</label>
+                <select id="cluster-select" class="form-select">
+                  <option value="all" selected>Tất cả các cụm (All Clusters)</option>
+                  <option value="0">Cụm 0: Điểm đến Đi làm / Thương mại</option>
+                  <option value="1">Cụm 1: Khu Dân cư Đi làm</option>
+                  <option value="2">Cụm 2: Hỗn hợp & Vui chơi Đêm</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="search-input">🔍 Tìm Trạm (Tên hoặc ID):</label>
+                <input type="text" id="search-input" class="form-input" placeholder="Ví dụ: Broadway, 7293.10...">
+              </div>
+
+              <div class="stations-counter">
+                Đang hiển thị: <span id="visible-station-count">0</span> trạm
+              </div>
             </div>
 
-            <div class="form-group">
-              <label for="cluster-select">🎯 Lọc Theo Cụm Trạm:</label>
-              <select id="cluster-select" class="form-select">
-                <option value="all" selected>Tất cả các cụm (All Clusters)</option>
-                <option value="0">Cụm 0: Điểm đến Đi làm / Thương mại</option>
-                <option value="1">Cụm 1: Khu Dân cư Đi làm</option>
-                <option value="2">Cụm 2: Hỗn hợp & Vui chơi Đêm</option>
-              </select>
+            <!-- Chú giải màu sắc cụm -->
+            <div class="sidebar-box legend-box">
+              <h4>Chú Giải Màu Sắc Cụm</h4>
+              <div class="legend-item">
+                <span class="legend-color color-0"></span>
+                <div class="legend-info">
+                  <strong>Cụm 0:</strong> Điểm đến Thương mại / Văn phòng
+                </div>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color color-1"></span>
+                <div class="legend-info">
+                  <strong>Cụm 1:</strong> Dân cư Đi làm (Xuất phát sáng)
+                </div>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color color-2"></span>
+                <div class="legend-info">
+                  <strong>Cụm 2:</strong> Hỗn hợp & Giải trí / Đêm
+                </div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label for="search-input">🔍 Tìm Trạm (Tên hoặc ID):</label>
-              <input type="text" id="search-input" class="form-input" placeholder="Ví dụ: Broadway, 7293.10...">
-            </div>
+            <!-- Profile Chi Tiết Của Trạm Được Chọn -->
+            <div class="sidebar-box station-profile-card" id="station-profile-card">
+              <div class="profile-placeholder" id="profile-placeholder">
+                <span>📍</span>
+                <p>Hãy nhấp vào một điểm trạm trên bản đồ để xem hồ sơ đặc trưng chi tiết.</p>
+              </div>
 
-            <div class="stations-counter">
-              Đang hiển thị: <span id="visible-station-count">0</span> trạm
+              <div class="profile-details hidden" id="profile-details">
+                <div class="profile-header">
+                  <span class="station-cluster-tag" id="detail-cluster-tag">Cụm 1</span>
+                  <h4 id="detail-station-name">E 88 St & Park Ave</h4>
+                  <div class="station-meta">
+                    <span>ID: <code id="detail-station-id">7293.10</code></span> •
+                    <span id="detail-total-trips">6,021 chuyến</span>
+                  </div>
+                </div>
+
+                <div class="metrics-bars">
+                  <div class="metric-row">
+                    <div class="metric-label">
+                      <span>Sáng (06-10h):</span>
+                      <strong id="bar-val-morning">23.3%</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill" id="bar-morning" style="width: 23%;"></div></div>
+                  </div>
+
+                  <div class="metric-row">
+                    <div class="metric-label">
+                      <span>Chiều (16-20h):</span>
+                      <strong id="bar-val-evening">28.5%</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill" id="bar-evening" style="width: 28%;"></div></div>
+                  </div>
+
+                  <div class="metric-row">
+                    <div class="metric-label">
+                      <span>Cuối tuần:</span>
+                      <strong id="bar-val-weekend">22.0%</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill" id="bar-weekend" style="width: 22%;"></div></div>
+                  </div>
+
+                  <div class="metric-row">
+                    <div class="metric-label">
+                      <span>Hội viên (Member):</span>
+                      <strong id="bar-val-member">84.8%</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill highlight" id="bar-member" style="width: 84%;"></div></div>
+                  </div>
+
+                  <div class="metric-row">
+                    <div class="metric-label">
+                      <span>Net Sáng (Vào - Ra):</span>
+                      <strong id="bar-val-flow">-36.8%</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill flow" id="bar-flow" style="width: 50%;"></div></div>
+                  </div>
+                </div>
+
+                <div class="profile-footer-stats">
+                  <div>
+                    <span class="foot-title">Thời lượng trung vị:</span>
+                    <span class="foot-val" id="detail-duration">8.6 phút</span>
+                  </div>
+                  <div>
+                    <span class="foot-title">Tọa độ:</span>
+                    <span class="foot-val" id="detail-coords">40.781, -73.956</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Chú giải màu sắc cụm -->
-          <div class="sidebar-box legend-box">
-            <h4>Chú Giải Màu Sắc Cụm</h4>
-            <div class="legend-item">
-              <span class="legend-color color-0"></span>
-              <div class="legend-info">
-                <strong>Cụm 0:</strong> Điểm đến Thương mại / Văn phòng
-              </div>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color color-1"></span>
-              <div class="legend-info">
-                <strong>Cụm 1:</strong> Dân cư Đi làm (Xuất phát sáng)
-              </div>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color color-2"></span>
-              <div class="legend-info">
-                <strong>Cụm 2:</strong> Hỗn hợp & Giải trí / Đêm
-              </div>
-            </div>
-          </div>
-
-          <!-- Profile Chi Tiết Của Trạm Được Chọn -->
-          <div class="sidebar-box station-profile-card" id="station-profile-card">
-            <div class="profile-placeholder" id="profile-placeholder">
-              <span>📍</span>
-              <p>Hãy nhấp vào một điểm trạm trên bản đồ để xem hồ sơ đặc trưng chi tiết.</p>
-            </div>
-
-            <div class="profile-details hidden" id="profile-details">
-              <div class="profile-header">
-                <span class="station-cluster-tag" id="detail-cluster-tag">Cụm 1</span>
-                <h4 id="detail-station-name">E 88 St & Park Ave</h4>
-                <div class="station-meta">
-                  <span>ID: <code id="detail-station-id">7293.10</code></span> •
-                  <span id="detail-total-trips">6,021 chuyến</span>
-                </div>
-              </div>
-
-              <div class="metrics-bars">
-                <div class="metric-row">
-                  <div class="metric-label">
-                    <span>Sáng (06-10h):</span>
-                    <strong id="bar-val-morning">23.3%</strong>
-                  </div>
-                  <div class="bar-track"><div class="bar-fill" id="bar-morning" style="width: 23%;"></div></div>
-                </div>
-
-                <div class="metric-row">
-                  <div class="metric-label">
-                    <span>Chiều (16-20h):</span>
-                    <strong id="bar-val-evening">28.5%</strong>
-                  </div>
-                  <div class="bar-track"><div class="bar-fill" id="bar-evening" style="width: 28%;"></div></div>
-                </div>
-
-                <div class="metric-row">
-                  <div class="metric-label">
-                    <span>Cuối tuần:</span>
-                    <strong id="bar-val-weekend">22.0%</strong>
-                  </div>
-                  <div class="bar-track"><div class="bar-fill" id="bar-weekend" style="width: 22%;"></div></div>
-                </div>
-
-                <div class="metric-row">
-                  <div class="metric-label">
-                    <span>Hội viên (Member):</span>
-                    <strong id="bar-val-member">84.8%</strong>
-                  </div>
-                  <div class="bar-track"><div class="bar-fill highlight" id="bar-member" style="width: 84%;"></div></div>
-                </div>
-
-                <div class="metric-row">
-                  <div class="metric-label">
-                    <span>Net Sáng (Vào - Ra):</span>
-                    <strong id="bar-val-flow">-36.8%</strong>
-                  </div>
-                  <div class="bar-track"><div class="bar-fill flow" id="bar-flow" style="width: 50%;"></div></div>
-                </div>
-              </div>
-
-              <div class="profile-footer-stats">
+          <!-- PHẦN 2: MÔ PHỎNG & DỰ ĐOÁN TRẠM MỚI (K-MEANS INFERENCE) -->
+          <div id="predict-view-container" class="hidden">
+            <div class="sidebar-box predict-box">
+              <div class="predict-header">
+                <span class="predict-icon">🧪</span>
                 <div>
-                  <span class="foot-title">Thời lượng trung vị:</span>
-                  <span class="foot-val" id="detail-duration">8.6 phút</span>
-                </div>
-                <div>
-                  <span class="foot-title">Tọa độ:</span>
-                  <span class="foot-val" id="detail-coords">40.781, -73.956</span>
+                  <h3>Dự Đoán Cụm Trạm Mới</h3>
+                  <p class="text-muted text-xs">Mô phỏng trạm giả định (What-If Analysis) qua pipeline K-Means (K=3)</p>
                 </div>
               </div>
+
+              <!-- Nút chọn mẫu có sẵn -->
+              <div class="preset-section">
+                <span class="preset-label">Mẫu trạm điển hình:</span>
+                <div class="preset-chips">
+                  <button type="button" class="preset-btn" data-preset="commuter">🏡 Dân Cư</button>
+                  <button type="button" class="preset-btn" data-preset="commercial">🏢 Công Sở</button>
+                  <button type="button" class="preset-btn" data-preset="leisure">🎡 Du Lịch</button>
+                </div>
+              </div>
+
+              <!-- Form nhập liệu 8 đặc trưng -->
+              <form id="form-predict" class="predict-form">
+                <div class="form-group">
+                  <label for="p-name">Tên trạm mô phỏng:</label>
+                  <input type="text" id="p-name" class="form-input" value="Trạm Mô Phỏng Mới (NYC)">
+                </div>
+
+                <div class="sliders-grid">
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Xuất phát Sáng (06-10h):</span>
+                      <strong id="lbl-morning">24%</strong>
+                    </div>
+                    <input type="range" id="p-morning" min="0" max="60" value="24" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Xuất phát Chiều (16-20h):</span>
+                      <strong id="lbl-evening">22%</strong>
+                    </div>
+                    <input type="range" id="p-evening" min="0" max="60" value="22" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Xuất phát Trưa (10-16h):</span>
+                      <strong id="lbl-midday">22%</strong>
+                    </div>
+                    <input type="range" id="p-midday" min="0" max="60" value="22" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Xuất phát Đêm (20-06h):</span>
+                      <strong id="lbl-night">12%</strong>
+                    </div>
+                    <input type="range" id="p-night" min="0" max="60" value="12" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Cuối tuần (%):</span>
+                      <strong id="lbl-weekend">18%</strong>
+                    </div>
+                    <input type="range" id="p-weekend" min="0" max="60" value="18" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Tỷ lệ Hội viên (%):</span>
+                      <strong id="lbl-member">85%</strong>
+                    </div>
+                    <input type="range" id="p-member" min="0" max="100" value="85" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Thời lượng trung vị:</span>
+                      <strong id="lbl-duration">10.0 phút</strong>
+                    </div>
+                    <input type="range" id="p-duration" min="3" max="45" value="10" step="0.5" class="slider-input">
+                  </div>
+
+                  <div class="slider-field">
+                    <div class="slider-header">
+                      <span>Net Flow Sáng (Vào - Ra):</span>
+                      <strong id="lbl-flow">-35%</strong>
+                    </div>
+                    <input type="range" id="p-flow" min="-100" max="100" value="-35" class="slider-input">
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-predict" id="btn-submit-predict">
+                  <span>🚀</span> Chạy Dự Đoán K-Means
+                </button>
+              </form>
+
+              <!-- Khung kết quả dự đoán -->
+              <div id="predict-result-card" class="predict-result hidden">
+                <div class="result-badge-row">
+                  <span class="pred-cluster-badge" id="res-badge">Cụm 1</span>
+                  <span class="pred-time" id="res-time">&lt; 1ms</span>
+                </div>
+                <h4 id="res-label">Khu Dân Cư Đi Làm (Commuter Origin)</h4>
+                
+                <div class="distances-box">
+                  <span class="dist-title">Khoảng cách Euclid tới các tâm cụm:</span>
+                  <div class="dist-row">
+                    <span>Cụm 0 (Thương Mại): <strong id="dist-0">--</strong></span>
+                    <span>Cụm 1 (Dân Cư): <strong id="dist-1" class="highlight-dist">--</strong></span>
+                    <span>Cụm 2 (Giải Trí): <strong id="dist-2">--</strong></span>
+                  </div>
+                </div>
+
+                <div class="recommendation-box">
+                  <span class="rec-title">📋 Khuyến Nghị Điều Phối Xe Tải:</span>
+                  <p id="res-recommendation">Đang phân tích...</p>
+                </div>
+
+                <button type="button" class="btn-pin-map" id="btn-pin-simulated">
+                  <span>📍</span> Cắm Mốc & Định Vị Trạm Trên Bản Đồ
+                </button>
+              </div>
+
             </div>
           </div>
 
